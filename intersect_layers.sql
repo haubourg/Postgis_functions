@@ -1,3 +1,23 @@
+/*
+/***************************************************************************
+Name                  :EasyCustomLabeling
+Description          : a generic function made to calculate overlapping area and ratios easy between polygon layers or polygon*line layers. 
+Date                 : 01/01/2012
+copyright            : (C) 2012 by regis haubourg - Agence de l'eau Adour Garonne
+version              : 0.1
+email                : regis dot haubourg at eau-adour-garonne.fr
+ ***************************************************************************/
+/*
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+
+
 -- Function: intersect_layers(character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, integer)
 
 -- DROP FUNCTION intersect_layers(character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, integer);
