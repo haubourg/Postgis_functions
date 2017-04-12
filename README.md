@@ -28,4 +28,7 @@ USAGE :
 	POur des croisements polygon X polygon, les objets de surface inférieur au carré du seuil sont enlevés (pour un seuil de 50m, les objets gardés feront plus de 2500 m2)
  
 --exemple d''appel de fonction pour les communes du 31 avec les zos_zpf
+
+```
 select * from  services.intersect_layers(''ref.admin_commune_ag'', ''insee_commune'', ''geoml93'', ''WHERE insee_commune like ''''31%'''''', ''zon.zpf_zos'', ''code_zpf'', ''geoml93'', NULL, 50 );
+```
