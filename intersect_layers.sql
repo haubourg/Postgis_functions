@@ -108,11 +108,11 @@ BEGIN
 		GROUP BY  tableA,  codeTableA, tableB , codeTableB
 		 ORDER BY codeTableA, codeTableB' ;
 
-	RAISE INFO 'Requ�te : %', _query;
+	RAISE INFO 'Query', _query;
 
 	RETURN QUERY EXECUTE _query;
 
-	RAISE INFO 'fin du traitement principal ';
+	RAISE INFO 'End of main processing';
 	RETURN;
 END
 $BODY$
@@ -122,40 +122,39 @@ $BODY$
 ALTER FUNCTION couv4g.intersect_layers(character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, integer)
   OWNER TO postgres;
 COMMENT ON FUNCTION couv4g.intersect_layers(character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, integer) IS 'fonction de croisement SIG + sortie des ratios de recouvrement entre objets
-auteur: RH
-date dernière modif: janvier 2012
-version: 1.1. modification pour pouvoir utiliser des noms de tables préfixées par le schéma
-version : 1.0 première version fonctionnelle
--- tests: géométrie
+auteur: Régis Haubourg
+version: 1.1 allow to use schema prefixed table names 
+version : 1.0 first version
+-- tests: geometry
 	-- gerometrytype multipolygon ou polygon / line ou multiline
---entrées / paramétres :
-	_taba character varying   - nom de la table A
-	_pkcola character varying,  - colonne à utiliser comme clé pour le regroupement des objets (pk)
-	_geomcola character varying  - colonne géométrique à utiliser
-	_filtertaba character varying - filtre SQL à inclure, avec le WHERE et/OU LIMIT. Exemple "WHERE monchamp = 22 LIMIT 100"
-	_tabb character varying, - nom de la table B
-	_pkcolb character varying,  - colonne à utiliser comme clé pour le regroupement des objets (pk)
-	_geomcolb character varying, colonne géométrique à utiliser pour la table B
-	_filtertabb character varying,  - filtre SQL à inclure, avec le WHERE et/OU LIMIT. Exemple "WHERE monchamp = 22 LIMIT 100"
-	_cleanthreshold integer - valeur de tolérance permettant de nettoyer des micro-objets. Valeur en unité du CRS (mètres pour le lambert 93). Pour des croisements ligne X polygone, tous les morceaux de ligne de taille infèrieure au seuil sont enlevés.
-	POur des croisements polygon X polygon, les objets de surface inférieure au carré du seuil sont enlevés (pour un seuil de 50m, les objets gardés feront plus de 2500 m2)
+-- inputs:
+	_taba character varying   - first table name . Can be ''mytable'' or '"mySchema"."myTable''
+	_pkcola character varying,  - key columns that will be used for grouping 
+	_geomcola character varying  - geometry to use 
+	_filtertaba character varying - SQL WHERE or LIMIT clause,  WHERE et/OU LIMIT. Example " ''WHERE monchamp = 22 LIMIT 100 ''"
+	_tabb character varying, - table B name
+	_pkcolb character varying,  - key columns for table B that will be used for grouping
+	_geomcolb character varying, geometry to use 
+	_filtertabb character varying,  - SQL WHERE or LIMIT clause,  WHERE et/OU LIMIT. Example " ''WHERE monchamp = 22 LIMIT 100 ''"
+	_cleanthreshold integer - threshold value to clean up non significant small overlaps. Value in CRS units. For lines against polygones, All the intersected segments shorter than threshold will be ignored.
+	For polygon against polygon, micro polygons where area is smaller than square threshold will be ignored
 
 --exemple d''appel de fonction pour les communes du 31 avec les zos_zpf
-select * from  intersect_layers(''ref.admin_commune_ag'', ''insee_commune'', ''geoml93'', ''WHERE insee_commune like ''''31%'''''', ''zon.zpf_zos'', ''code_zpf'', ''geoml93'', NULL, 50 );
+        select * from  intersect_layers(''ref.admin_commune_ag'', ''insee_commune'', ''geoml93'', ''WHERE insee_commune like ''''31%'''''', ''zon.zpf_zos'', ''code_zpf'', ''geoml93'', NULL, 50 );
 
 -- sorties: une table
- "tableA " character varying,
- "codeTableA" character varying,
- "tableB" character varying,
- "codeTableB" character varying,
-  "areaObjectA" double precision,
-  "lengthObjectA" double precision,
-  "areaObjectB" double precision,
-  "lengthObjectB" double precision,
-   "overlapArea" double precision,
-    "overlapLength " double precision,
-     "ratioAinB" double precision,
-     "ratioBinA" double precision
+        "tableA " character varying,
+        "codeTableA" character varying,
+        "tableB" character varying,
+        "codeTableB" character varying,
+        "areaObjectA" double precision,
+        "lengthObjectA" double precision,
+        "areaObjectB" double precision,
+        "lengthObjectB" double precision,
+        "overlapArea" double precision,
+        "overlapLength " double precision,
+        "ratioAinB" double precision,
+        "ratioBinA" double precision
 
 
 ---messages d''info / exceptions gérées
@@ -171,33 +170,33 @@ UNINSTALL script
 DROP FUNCTION intersect_layers(_tabA character varying, _pkColA character varying, _geomColA character varying, _filterTabA character varying, _tabB character varying, _pkColB character varying,
 		_geomColB character varying, _filterTabB character varying,	_cleanThreshold integer) ;
 
----requete modèle non paramétrée:----
+---sample raw query:----
 ---------------------------------------------------------------------------
 
-SELECT tableA, codeTableA , tableB , codeTableB,
-avg(areaObjectA) areaObjectA, avg(lengthObjectA) lengthObjectA,
-avg(areaObjectB) areaObjectB, avg(lengthObjectB) lengthObjectB,
-sum(overlapArea) overlapArea, sum(overlapLength) overlapLength,
-CASE WHEN sum(overlapArea) is NULL THEN   NULL ELSE  sum(overlapArea) / avg(areaObjectB) END ratioAinB,
-CASE WHEN sum(overlapArea) is NULL THEN   NULL ELSE  sum(overlapArea) / avg(areaObjectA) END ratioBinA
- FROM (
-	Select
-		''_tabA''::character varying tableA, a.code codeTableA,
-		 b.code codeTableB, ''_tabB''::character varying tableB,
-		CASE WHEN geometrytype(a.geom) not in (''POLYGON'',''MULTIPOLYGON'') THEN NULL ELSE st_area2d(a.geom) END areaObjectA,
-		CASE WHEN geometrytype(a.geom) in (''POLYGON'',''MULTIPOLYGON'') THEN NULL ELSE st_length(a.geom) END lengthObjectA,
-		CASE WHEN geometrytype(b.geom) not in (''POLYGON'',''MULTIPOLYGON'') THEN NULL ELSE st_area2d(b.geom) END areaObjectB,
-		CASE WHEN geometrytype(b.geom) in (''POLYGON'',''MULTIPOLYGON'') THEN NULL ELSE st_length(b.geom) END lengthObjectB,
-		CASE WHEN geometrytype(b.geom) not in (''POLYGON'',''MULTIPOLYGON'') THEN NULL ELSE st_area2d(st_intersection(a.geom, b.geom))  END overlapArea,
-		CASE WHEN geometrytype(b.geom) in (''POLYGON'',''MULTIPOLYGON'') THEN NULL ELSE st_length(st_intersection(a.geom, b.geom)) END overlapLength
-	FROM
-		(select eu_cd code, geom geom from lwbody where eu_cd like ''FRF%'' limit 100 ) a , (select  eu_cd code, geom geom from bvi_grass_cleaned where eu_cd like ''FRF%'' limit 120) b
-	WHERE
-			st_intersects(a.geom, b.geom)
-		AND
-			CASE WHEN (geometrytype(a.geom) in (''POLYGON'',''MULTIPOLYGON'') AND geometrytype(b.geom) in (''POLYGON'',''MULTIPOLYGON'')) THEN 	st_area2d(st_intersection(a.geom, b.geom)) > 2500
-			ELSE 	st_length(st_intersection(a.geom, b.geom))>50  END
-	) as crosselem
-GROUP BY  tableA, codeTableA , tableB , codeTableB
-ORDER BY  tableA, codeTableA, tableB , codeTableB
-';
+        SELECT tableA, codeTableA , tableB , codeTableB,
+        avg(areaObjectA) areaObjectA, avg(lengthObjectA) lengthObjectA,
+        avg(areaObjectB) areaObjectB, avg(lengthObjectB) lengthObjectB,
+        sum(overlapArea) overlapArea, sum(overlapLength) overlapLength,
+        CASE WHEN sum(overlapArea) is NULL THEN   NULL ELSE  sum(overlapArea) / avg(areaObjectB) END ratioAinB,
+        CASE WHEN sum(overlapArea) is NULL THEN   NULL ELSE  sum(overlapArea) / avg(areaObjectA) END ratioBinA
+         FROM (
+                Select
+                        ''_tabA''::character varying tableA, a.code codeTableA,
+                         b.code codeTableB, ''_tabB''::character varying tableB,
+                        CASE WHEN geometrytype(a.geom) not in (''POLYGON'',''MULTIPOLYGON'') THEN NULL ELSE st_area2d(a.geom) END areaObjectA,
+                        CASE WHEN geometrytype(a.geom) in (''POLYGON'',''MULTIPOLYGON'') THEN NULL ELSE st_length(a.geom) END lengthObjectA,
+                        CASE WHEN geometrytype(b.geom) not in (''POLYGON'',''MULTIPOLYGON'') THEN NULL ELSE st_area2d(b.geom) END areaObjectB,
+                        CASE WHEN geometrytype(b.geom) in (''POLYGON'',''MULTIPOLYGON'') THEN NULL ELSE st_length(b.geom) END lengthObjectB,
+                        CASE WHEN geometrytype(b.geom) not in (''POLYGON'',''MULTIPOLYGON'') THEN NULL ELSE st_area2d(st_intersection(a.geom, b.geom))  END overlapArea,
+                        CASE WHEN geometrytype(b.geom) in (''POLYGON'',''MULTIPOLYGON'') THEN NULL ELSE st_length(st_intersection(a.geom, b.geom)) END overlapLength
+                FROM
+                        (select eu_cd code, geom geom from lwbody where eu_cd like ''FRF%'' limit 100 ) a , (select  eu_cd code, geom geom from bvi_grass_cleaned where eu_cd like ''FRF%'' limit 120) b
+                WHERE
+                                st_intersects(a.geom, b.geom)
+                        AND
+                                CASE WHEN (geometrytype(a.geom) in (''POLYGON'',''MULTIPOLYGON'') AND geometrytype(b.geom) in (''POLYGON'',''MULTIPOLYGON'')) THEN 	st_area2d(st_intersection(a.geom, b.geom)) > 2500
+                                ELSE 	st_length(st_intersection(a.geom, b.geom))>50  END
+                ) as crosselem
+        GROUP BY  tableA, codeTableA , tableB , codeTableB
+        ORDER BY  tableA, codeTableA, tableB , codeTableB
+        ';
